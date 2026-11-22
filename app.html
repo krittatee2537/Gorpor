@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<title>AI Video Studio – Web</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{color-scheme:light dark;--bg:#0f1115;--card:#171a21;--line:#262b36;--tx:#e8eaf0;--mut:#8b93a7;--acc:#7c5cff;--acc2:#00d4a6;--err:#ff5d6c;--inp:#0f1218;--chip:#222733}
+@media(prefers-color-scheme:light){:root{--bg:#f4f5f8;--card:#fff;--line:#e1e4ec;--tx:#1b1e27;--mut:#6b7388;--acc:#6b4cf0;--acc2:#00a37f;--err:#e5384b;--inp:#f6f7fa;--chip:#eceef4}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:14px/1.5 "Noto Sans Thai","Sarabun",system-ui,sans-serif}
+header{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px}
+header h1{font-size:16px;margin:0}header span{color:var(--mut);font-size:11px}
+#upd{display:none;margin:10px 14px 0;padding:10px 12px;border-radius:10px;background:var(--chip);border:1px solid var(--acc);font-size:13px}
+#upd a{color:var(--acc);font-weight:600}
+nav{display:flex;gap:4px;padding:8px 10px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:5;overflow-x:auto}
+nav button{background:none;border:0;color:var(--mut);padding:7px 10px;white-space:nowrap;font-size:13px;border-radius:8px;cursor:pointer;font:inherit}
+nav button.on{background:var(--card);color:var(--tx);box-shadow:inset 0 0 0 1px var(--line)}
+main{padding:14px}
+section{display:none}section.on{display:block}
+.grid{display:grid;grid-template-columns:1fr;gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card h3{margin:0 0 12px;font-size:14px}
+label{display:block;color:var(--mut);font-size:12px;margin:10px 0 4px}
+input,select,textarea{width:100%;background:var(--inp);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:9px 11px;font:inherit}
+textarea{min-height:110px;resize:vertical}
+.row{display:flex;gap:10px}.row>*{flex:1}
+button.p{background:var(--acc);color:#fff;border:0;border-radius:9px;padding:10px 16px;cursor:pointer;font:inherit;font-weight:600}
+button.p:hover{filter:brightness(1.1)}button.p:disabled{opacity:.5;cursor:wait}
+button.g{background:var(--chip);color:var(--tx);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer;font:inherit}
+#log{background:var(--inp);border:1px solid var(--line);border-radius:8px;padding:10px;height:150px;overflow:auto;font:12px/1.6 ui-monospace,monospace;color:var(--mut);margin-top:12px;white-space:pre-wrap}
+video{width:min(100%,280px);aspect-ratio:9/16;display:block;margin:0 auto;background:#000;border-radius:10px}
+.item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border:0}.item .t{flex:1;min-width:0}.item .t b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item small{color:var(--mut)}.tag{padding:2px 9px;border-radius:99px;font-size:11px;background:var(--chip)}
+.tag.pending{color:#d99a00}.tag.posting{color:var(--acc)}.tag.done{color:var(--acc2)}.tag.error{color:var(--err)}
+.note{color:var(--mut);font-size:12px;margin-top:8px}
+.webtag{background:var(--acc);color:#fff!important;border-radius:99px;padding:1px 9px;font-size:10px!important;font-weight:700}
+nav button[data-t="prod"],nav button[data-t="queue"],.ext-only{display:none!important}
+main{max-width:1100px;margin:0 auto;padding:16px 20px}
+.grid{grid-template-columns:1fr 1fr}@media(max-width:900px){.grid{grid-template-columns:1fr}}
+#set .card{max-width:560px}
+</style>
+</head>
+<body>
+<header><h1>🎬 AI Video Studio</h1><span class="webtag">WEB</span><span>Gemini TTS · TikTok queue · TikTok queue</span></header>
+<div id="upd" class="ext-only"></div>
+<nav>
+  <button data-t="gen" class="on">สร้างวิดีโอ</button>
+  <button data-t="prod">สินค้า Affiliate</button>
+  <button data-t="queue">คิวโพสต์</button>
+  <button data-t="hist">ประวัติ Prompt</button>
+  <button data-t="set">ตั้งค่า</button>
+</nav>
+<main>
+<section id="gen" class="on"><div class="grid">
+  <div class="card">
+    <h3>1. ใส่เนื้อหา</h3>
+    <div class="row">
+      <div><label>โหมด</label>
+        <select id="mode">
+          <option value="product">🛍️ สินค้า/รีวิว</option>
+          <option value="story">📖 Story / เล่าเรื่อง / Fact</option>
+          <option value="cartoon">🎨 การ์ตูน / แอนิเมชัน</option>
+        </select></div>
+      <div><label>จำนวนฉาก</label><input id="scenes" type="number" min="3" max="10" value="5"></div>
+    </div>
+    <label>สคริปต์ / บทความ / คีย์เวิร์ด</label>
+    <textarea id="input" placeholder="เช่น: รีวิวพัดลมพกพา ชาร์จ USB แบตอึด 8 ชม. เบา พกง่าย (เว้นว่างได้ถ้าแนบรูป)"></textarea>
+    <label>รูปประกอบ — ให้ AI ดูรูปแล้วเขียนบท (สูงสุด 8 รูป)</label>
+    <input type="file" id="refFiles" accept="image/*" multiple>
+    <div id="refThumbs" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>
+    <label><input type="checkbox" id="refBg" checked style="width:auto"> ใช้รูปเหล่านี้เป็นพื้นหลังฉากให้ตรงกับบท</label>
+    <div id="prodWrap" class="ext-only"><label>สินค้าที่จะปักตะกร้า (ไม่บังคับ)</label><select id="prodSel"><option value="">— ไม่ปัก —</option></select></div>
+    <div class="row">
+      <div><label>โมเดลเขียนสคริปต์</label><select id="textModel"></select></div>
+      <div><label>โมเดลเสียง (TTS)</label><select id="ttsModel"></select></div>
+    </div>
+    <div id="usage" class="note" style="margin:6px 0 0;line-height:1.7"></div>
+    <p class="note" style="margin-top:4px"><button class="g" id="loadModels">โหลดรายชื่อโมเดลจาก API</button> <span id="modelInfo"></span></p>
+    <div class="row">
+      <div><label>เสียงพากย์</label>
+        <select id="voice">
+          <option value="Kore">หญิง – Kore (ชัด มั่นใจ)</option>
+          <option value="Aoede">หญิง – Aoede (นุ่ม)</option>
+          <option value="Leda">หญิง – Leda (สดใส)</option>
+          <option value="Charon">ชาย – Charon (ให้ความรู้)</option>
+          <option value="Puck">ชาย – Puck (ร่าเริง)</option>
+          <option value="Fenrir">ชาย – Fenrir (ตื่นเต้น)</option>
+        </select></div>
+      <div><label>สไตล์การพูด</label>
+        <select id="vstyle">
+          <option value="พูดด้วยน้ำเสียงสดใสแบบรีวิวสินค้า น่าเชื่อถือ">รีวิว/ขายของ</option>
+          <option value="พูดด้วยน้ำเสียงเล่าเรื่อง น่าติดตาม จังหวะพอดี">เล่าเรื่อง</option>
+          <option value="พูดด้วยน้ำเสียงตลก ขี้เล่น มีพลัง">ตลก</option>
+          <option value="พูดด้วยน้ำเสียงปกติ ชัดเจน">ปกติ</option>
+        </select></div>
+    </div>
+    <label>ภาพ/วิดีโอพื้นหลัง</label>
+    <select id="bgSrc"><option value="gradient">พื้นหลังไล่สี (อัตโนมัติ)</option><option value="upload">อัปโหลดรูป/วิดีโอของฉันเอง</option></select>
+    <div id="mediaWrap" style="display:none"><input type="file" id="mediaFiles" accept="image/*,video/*" multiple>
+      <p class="note" style="margin-top:2px">ไฟล์จะถูกจัดให้ฉากละ 1 ไฟล์ตามลำดับที่เลือก ถ้าไฟล์น้อยกว่าฉากจะวนซ้ำ (วิดีโอจะถูกปิดเสียง ใช้เสียงพากย์แทน)</p></div>
+    <div class="ext-only">
+    <label><input type="checkbox" id="metaVideo" style="width:auto"> 🎞️ ให้ Meta AI สร้างวิดีโอฉาก ให้ครบตามเวลาเสียงพากย์</label>
+    <div class="row"><div><label>สูงสุดกี่คลิปต่อฉาก</label><select id="maxClips"><option>1</option><option>2</option><option selected>3</option><option>4</option></select></div><div></div></div>
+    <p class="note" style="margin-top:2px">คลิปจาก Meta AI สั้น (ราว 5 วินาที) ระบบวัดความยาวจริง แล้วสั่งสร้างต่อจนเกินเวลาเสียงพากย์ของฉากนั้น ถ้ายังไม่ครบตามจำนวนสูงสุด จะเล่นวนซ้ำ · ช้า ใช้เวลาหลายนาทีต่อคลิป</p>
+    <label><input type="checkbox" id="metaCover" style="width:auto"> 🖼️ ให้ Meta AI สร้างภาพปกคลิป</label>
+    <label style="margin-left:22px"><input type="checkbox" id="coverTitle" checked style="width:auto"> ใส่ชื่อเรื่องบนปก</label>
+    <label style="margin-left:22px"><input type="checkbox" id="coverFrame" checked style="width:auto"> ใส่ปกเป็นเฟรมแรก 1 วินาที</label>
+    </div>
+    <label><input type="checkbox" id="green" style="width:auto"> 🟩 พื้นหลังเขียว (Chroma Key)</label>
+    <p class="note" style="margin-top:2px">ใช้พื้นหลังเขียว #00FF00 ล้วน (ไม่ใช้ไฟล์ที่อัปโหลด) และตัดเงาไล่สีของซับออก เพื่อนำไปคีย์สีต่อใน CapCut/Premiere</p>
+    <p style="margin:14px 0 0"><button class="p" id="go">✨ เริ่มสร้างคลิป</button></p>
+    <div id="log"></div>
+    <p class="note">⚠️ ระหว่างเรนเดอร์ให้เปิดแท็บนี้ค้างไว้ที่หน้าจอ — ถ้าสลับแท็บ ภาพอาจกระตุก (เสียงและซับยังตรงเวลา)</p>
+  </div>
+  <div class="card">
+    <h3>2. ตรวจผล & ดาวน์โหลด</h3>
+    <video id="player" controls></video>
+    <div id="coverBox" style="display:none;margin-top:10px;text-align:center"><img id="coverImg" style="width:min(100%,140px);aspect-ratio:9/16;object-fit:cover;border-radius:10px;border:1px solid var(--line)"><p class="note" style="margin:4px 0 0">ภาพปก <button class="g" id="coverDl">⬇️ ดาวน์โหลดปก</button></p></div>
+    <label>แคปชัน</label><textarea id="caption" style="min-height:70px"></textarea>
+    <label>แฮชแท็ก (คั่นด้วยเว้นวรรค)</label><input id="tags">
+    <input id="when" type="datetime-local" class="ext-only">
+    <p style="margin:14px 0 0" class="row">
+      <button class="p ext-only" id="enq" disabled>➕ เพิ่มเข้าคิว</button>
+      <button class="p" id="dl" disabled>⬇️ ดาวน์โหลดคลิป</button>
+    </p>
+  </div>
+</div></section>
+
+<section id="prod"><div class="grid">
+  <div class="card"><h3>เพิ่มสินค้า</h3>
+    <label>ชื่อสินค้า (ตามที่ค้นหาใน TikTok Shop)</label><input id="pName">
+    <label>Product ID / คีย์เวิร์ดค้นหา (ไม่บังคับ)</label><input id="pId">
+    <p style="margin:14px 0 0"><button class="p" id="pAdd">บันทึก</button></p>
+    <p class="note">บอทจะค้นหาสินค้านี้ในกล่อง “เพิ่มลิงก์/สินค้า” ของหน้าอัปโหลดแล้วเลือกผลแรก — บัญชีต้องเปิดสิทธิ์ TikTok Shop Affiliate</p></div>
+  <div class="card"><h3>รายการสินค้า</h3><div id="pList"></div></div>
+</div></section>
+
+<section id="queue"><div class="card"><h3>คิวโพสต์ <button class="g" id="qRefresh" style="float:right">รีเฟรช</button></h3><div id="qList"></div>
+<p class="note">ส่วนขยายตรวจคิวทุก 1 นาที (ต้องเปิด Chrome ไว้ และล็อกอิน TikTok ไว้) — เว้นระยะสุ่มระหว่างโพสต์และจำกัดต่อวันตามที่ตั้งค่า</p></div></section>
+
+<section id="hist"><div class="card"><h3>ประวัติ Prompt <span style="float:right"><button class="g" id="hExport">ส่งออก JSON</button> <button class="g" id="hClear">ล้างทั้งหมด</button></span></h3><div id="hList"></div>
+<p class="note">บันทึกอัตโนมัติทุกครั้งที่สร้างคลิปจบ (เก็บล่าสุด 100 รายการ) — รวมสคริปต์ต้นทาง บทพูด และ prompt ที่ใช้จริง</p></div></section>
+
+<section id="set"><div class="card"><h3>ตั้งค่า</h3>
+  <label>Gemini API Key (ใช้เขียนสคริปต์ + เสียงพากย์)</label><input id="key" type="password" placeholder="AIza...">
+  <p class="note">คีย์เก็บในเบราว์เซอร์เครื่องนี้เท่านั้น (localStorage) และส่งตรงไปที่ Google เท่านั้น ไม่ผ่านเซิร์ฟเวอร์อื่น — อย่าใช้เครื่องสาธารณะ</p>
+  <div class="ext-only">
+    <div class="row">
+    <div><label>เว้นระยะขั้นต่ำ (นาที)</label><input id="minGap" type="number" min="1"></div>
+    <div><label>เว้นระยะสูงสุด (นาที)</label><input id="maxGap" type="number" min="1"></div>
+    <div><label>โพสต์สูงสุด/วัน</label><input id="dailyCap" type="number" min="1"></div>
+  </div>
+  <label>Update URL (โฟลเดอร์ที่มี version.json + config.json)</label><input id="updateUrl" placeholder="https://krittatee2537.github.io/video-Gemini/">
+  <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="autoCheck" style="width:auto"> เช็กอัปเดตอัตโนมัติทุก 6 ชั่วโมง</label>
+  <p class="note"><button class="g" id="checkNow">เช็กอัปเดตตอนนี้</button> <span id="updInfo"></span></p>
+  </div>
+  <p style="margin:14px 0 0"><button class="p" id="sSave">บันทึก</button> <span id="sOk" class="note"></span></p>
+</div></section>
+</main>
+<script>
+const AVS_DB = {
+  open() {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open('avs', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('videos');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+  },
+  async tx(mode, fn) {
+    const db = await this.open();
+    return new Promise((res, rej) => {
+      const t = db.transaction('videos', mode);
+      const req = fn(t.objectStore('videos'));
+      t.oncomplete = () => res(req && req.result);
+      t.onerror = () => rej(t.error);
+    });
+  },
+  put(k, v) { return this.tx('readwrite', s => s.put(v, k)); },
+  get(k) { return this.tx('readonly', s => s.get(k)); },
+  del(k) { return this.tx('readwrite', s => s.delete(k)); }
+};
+
+</script>
+<script>
+// ---- เว็บเวอร์ชัน: จำลอง chrome.* ด้วย localStorage ----
+(() => {
+  const KEY = 'avs_web_store';
+  const read = () => { try { return JSON.parse(localStorage.getItem(KEY) || '{}'); } catch { return {}; } };
+  const write = o => { try { localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) { console.warn('เก็บข้อมูลไม่ได้', e); } };
+  window.chrome = {
+    storage: {
+      local: {
+        get: async q => { const s = read(); if (q == null) return s; if (typeof q === 'string') return { [q]: s[q] }; if (Array.isArray(q)) return Object.fromEntries(q.map(k => [k, s[k]])); return Object.fromEntries(Object.entries(q).map(([k, d]) => [k, k in s ? s[k] : d])); },
+        set: async o => { write({ ...read(), ...o }); },
+        remove: async k => { const s = read(); [].concat(k).forEach(x => delete s[x]); write(s); }
+      },
+      onChanged: { addListener() {} }
+    },
+    runtime: { getManifest: () => ({ version: 'web' }), sendMessage: async () => ({}) },
+    tabs: { query: async () => [], create: async () => { throw new Error('ฟีเจอร์นี้ใช้ได้เฉพาะ Chrome extension'); }, sendMessage: async () => { throw new Error('ฟีเจอร์นี้ใช้ได้เฉพาะ Chrome extension'); } }
+  };
+})();
+</script>
+<script>
+const nextFrame = f => document.hidden ? setTimeout(f, 40) : requestAnimationFrame(f);
+const $ = s => document.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const DEF = { geminiKey: '', textModel: 'gemini-2.5-flash', ttsModel: 'gemini-2.5-flash-preview-tts', minGap: 20, maxGap: 45, dailyCap: 5, updateUrl: 'https://krittatee2537.github.io/video-Gemini/', autoCheck: true };
+const usage = {}; // โทเคนรอบนี้ ต่อโมเดล
+const limitCache = {};
+async function addUsage(model, u) {
+  if (!u) return;
+  const a = usage[model] = usage[model] || { p: 0, c: 0, t: 0, n: 0 };
+  a.p += u.promptTokenCount || 0; a.c += (u.candidatesTokenCount || 0) + (u.thoughtsTokenCount || 0); a.t += u.totalTokenCount || 0; a.n++;
+  const tot = await store.get('usageTotals', {}), b = tot[model] = tot[model] || { p: 0, c: 0, t: 0, n: 0 };
+  b.p += u.promptTokenCount || 0; b.c += (u.candidatesTokenCount || 0) + (u.thoughtsTokenCount || 0); b.t += u.totalTokenCount || 0; b.n++;
+  await store.set('usageTotals', tot); renderUsage();
+}
+async function modelLimit(m) {
+  if (limitCache[m] !== undefined || !settings.geminiKey) return limitCache[m];
+  limitCache[m] = null;
+  try { const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}?key=${settings.geminiKey}`); const j = await r.json(); if (r.ok) limitCache[m] = { i: j.inputTokenLimit, o: j.outputTokenLimit }; } catch {}
+  return limitCache[m];
+}
+const fmt = n => (n || 0).toLocaleString('th-TH');
+async function renderUsage() {
+  const box = $('#usage'); if (!box || !settings) return;
+  const tot = await store.get('usageTotals', {}), rows = [];
+  for (const [label, m] of [['สคริปต์', settings.textModel], ['เสียง', settings.ttsModel]]) {
+    if (!m) continue; const r = usage[m], t = tot[m], lim = await modelLimit(m);
+    rows.push(`<b>${label}</b> <code>${esc(m)}</code><br>รอบนี้: เข้า ${fmt(r?.p)} · ออก ${fmt(r?.c)} · รวม <b>${fmt(r?.t)}</b> (${r?.n || 0} ครั้ง) · สะสม: <b>${fmt(t?.t)}</b>${lim?.i ? ` · ขีดจำกัด: เข้า ${fmt(lim.i)} / ออก ${fmt(lim.o)}` : ''}`);
+  }
+  box.innerHTML = '📊 โทเคนที่ใช้ — ' + '<br>' + rows.join('<br>') + ' <button class="g" id="usageReset" style="padding:2px 8px;font-size:11px">รีเซ็ตสะสม</button>';
+  $('#usageReset').onclick = async () => { await store.set('usageTotals', {}); renderUsage(); };
+}
+let settings = { ...DEF }, current = null, ac = null, greenOn = false;
+const log = m => { const l = $('#log'); l.textContent += m + '\n'; l.scrollTop = l.scrollHeight; };
+const store = {
+  get: async (k, d) => (await chrome.storage.local.get({ [k]: d }))[k],
+  set: (k, v) => chrome.storage.local.set({ [k]: v })
+};
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button,section').forEach(e => e.classList.remove('on'));
+  b.classList.add('on'); $('#' + b.dataset.t).classList.add('on');
+  if (b.dataset.t === 'queue') renderQueue();
+  if (b.dataset.t === 'hist') renderHist();
+});
+
+async function loadSettings() {
+  settings = { ...DEF, ...(await store.get('settings', {})) };
+  await populateModels();
+  for (const k of Object.keys(DEF)) if (k !== 'autoCheck') $('#' + (k === 'geminiKey' ? 'key' : k)).value = settings[k];
+  $('#autoCheck').checked = settings.autoCheck !== false;
+}
+$('#sSave').onclick = async () => {
+  settings = {
+    geminiKey: $('#key').value.trim(), textModel: $('#textModel').value.trim() || DEF.textModel,
+    ttsModel: $('#ttsModel').value.trim() || DEF.ttsModel,
+    minGap: +$('#minGap').value || DEF.minGap, maxGap: Math.max(+$('#maxGap').value || DEF.maxGap, +$('#minGap').value || 1),
+    dailyCap: +$('#dailyCap').value || DEF.dailyCap,
+    updateUrl: $('#updateUrl').value.trim() || DEF.updateUrl, autoCheck: $('#autoCheck').checked
+  };
+  await store.set('settings', settings);
+  $('#sOk').textContent = 'บันทึกแล้ว ✓'; setTimeout(() => $('#sOk').textContent = '', 2000);
+};
+
+async function renderProducts() {
+  const list = await store.get('products', []);
+  $('#pList').innerHTML = list.length ? '' : '<p class="note">ยังไม่มีสินค้า</p>';
+  $('#prodSel').innerHTML = '<option value="">— ไม่ปัก —</option>';
+  list.forEach((p, i) => {
+    $('#prodSel').insertAdjacentHTML('beforeend', `<option value="${i}">${esc(p.name)}</option>`);
+    const d = document.createElement('div'); d.className = 'item';
+    d.innerHTML = `<div class="t"><b>${esc(p.name)}</b><small>${esc(p.id || '')}</small></div><button class="g">ลบ</button>`;
+    d.querySelector('button').onclick = async () => { list.splice(i, 1); await store.set('products', list); renderProducts(); };
+    $('#pList').append(d);
+  });
+}
+$('#pAdd').onclick = async () => {
+  const name = $('#pName').value.trim(); if (!name) return;
+  const list = await store.get('products', []); list.push({ name, id: $('#pId').value.trim() });
+  await store.set('products', list); $('#pName').value = $('#pId').value = ''; renderProducts();
+};
+
+const MODE_GUIDE = {
+  product: { vis: 'ภาพถ่ายสินค้าสไตล์ไลฟ์สไตล์เหมือนจริง แสงสวยสะอาดตา แนวตั้ง 9:16 ไม่มีตัวอักษรในภาพ', tone: 'คลิปรีวิว/ขายสินค้า ฉากแรกต้องเป็น hook ที่ดึงความสนใจใน 3 วินาที ขยี้จุดเด่น ปิดด้วย call-to-action ให้กดตะกร้า' },
+  story: { vis: 'ภาพประกอบสไตล์ภาพยนตร์ แสงดราม่า แนวตั้ง 9:16 ไม่มีตัวอักษรในภาพ', tone: 'คลิปเล่าเรื่อง/สาระ/Fact เปิดด้วยประโยคที่ชวนสงสัย เล่าต่อเนื่อง จบด้วยประเด็นที่คนอยากคอมเมนต์' },
+  cartoon: { vis: 'ภาพการ์ตูน 2D น่ารัก สีสดแบบแฟลต ตัวละครหน้าตาเหมือนเดิมทุกภาพ แนวตั้ง 9:16 ไม่มีตัวอักษรในภาพ', tone: 'คลิปเล่าเรื่องแนวการ์ตูน ใช้ตัวละครเดิมตลอดทุกฉาก บรรยายสนุก เข้าใจง่าย' }
+};
+async function gemini(prompt, imgs = []) {
+  if (!settings.geminiKey) throw new Error('ยังไม่ได้ใส่ Gemini API Key ในหน้าตั้งค่า');
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${settings.textModel}:generateContent?key=${settings.geminiKey}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }, ...imgs.map(d => ({ inlineData: { mimeType: 'image/jpeg', data: d } }))] }], generationConfig: { responseMimeType: 'application/json' } })
+  });
+  const j = await r.json(); if (!r.ok) throw new Error(j.error?.message || 'Gemini error');
+  addUsage(settings.textModel, j.usageMetadata);
+  const parts = j.candidates?.[0]?.content?.parts;
+  if (!parts) throw new Error(`Gemini ไม่ตอบกลับ (${j.candidates?.[0]?.finishReason || j.promptFeedback?.blockReason || 'ไม่ทราบสาเหตุ'}) — ลองกดสร้างใหม่หรือเปลี่ยนโมเดล`);
+  return JSON.parse(parts.map(p => p.text || '').join(''));
+}
+const GREEN_VIS = 'ตัวแบบอยู่บนฉากพื้นหลังสีเขียวล้วนแบบกรีนสกรีน (#00FF00) เรียบสม่ำเสมอ แสงสว่างเท่ากันทั้งภาพ ไม่มีเงาหรือไล่สีที่พื้นหลัง ตัวแบบไม่มีสีเขียวปน แนวตั้ง 9:16 ไม่มีตัวอักษรในภาพ';
+function genPlan(mode, input, n, imgs = [], opt = {}) {
+  const g = MODE_GUIDE[mode], k = imgs.length;
+  const imgNote = k ? `\nมีรูปแนบ ${k} รูป (เรียงตามลำดับที่ส่ง เป็นรูปที่ 1 ถึง ${k}) ให้ดูรูปจริงแล้วเขียนบทจากสิ่งที่เห็น (สินค้า จุดเด่น บรรยากาศ) ห้ามแต่งข้อมูลที่ไม่เห็นในรูปหรือไม่ได้ระบุในเนื้อหา และในแต่ละฉากให้ระบุ "image" เป็นเลขรูป (1-${k}) ที่ตรงกับบทฉากนั้นที่สุด` : '';
+  const vis = greenOn ? GREEN_VIS : g.vis;
+  const visNote = opt.visual ? `\nแต่ละฉากต้องมี "visual" เป็นภาษาไทย เขียนเป็นคำสั่งสั้น ๆ ตรงไปตรงมาถึง AI สร้างวิดีโอ บรรยายภาพและการเคลื่อนไหวของกล้อง/ตัวแบบให้ชัด เหมาะกับคลิปสั้น 5 วินาที ไม่มีบทพูดหรือข้อความบนจอ ต่อท้ายด้วย: ${vis}` : '';
+  const coverNote = opt.cover ? `\nต้องมี "cover" เป็นภาษาไทย เขียนเป็นคำสั่งสั้น ๆ ตรงไปตรงมาถึง AI สร้างภาพ บรรยายภาพปกคลิปที่ดึงดูด เห็นจุดเด่นชัดเจนตั้งแต่แวบแรก เว้นพื้นที่ว่างด้านบนสำหรับใส่ชื่อเรื่อง ไม่มีตัวอักษรในภาพ ต่อท้ายด้วย: ${vis}` : '';
+  return gemini(`คุณเป็นนักเขียนสคริปต์คลิปสั้นแนวตั้ง (TikTok/Reels) ภาษาไทย
+ประเภท: ${g.tone}
+ความยาวรวมประมาณ 30-45 วินาที แบ่งเป็น ${n} ฉาก แต่ละฉากบรรยายไทย 1-2 ประโยคสั้น ๆ (ไม่เกิน 90 ตัวอักษร) พูดจริงได้ ห้ามใส่อีโมจิหรือสัญลักษณ์${imgNote}${visNote}${coverNote}
+ตอบเป็น JSON เท่านั้น: {"title":"ชื่อเรื่องสั้น ไม่เกิน 30 ตัวอักษร","caption":"แคปชันไทยสั้น ๆ","hashtags":["#..",".."]${opt.cover ? ',"cover":""' : ''},"scenes":[{"narration":""${opt.visual ? ',"visual":""' : ''}${k ? ',"image":1' : ''}}]}
+เนื้อหาต้นทาง:
+"""${input || '(ไม่มี — ใช้ข้อมูลจากรูปเป็นหลัก)'}"""`, imgs);
+}
+async function tts(text, voice, style) {
+  let lastErr = 'TTS error';
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt) log(`   ↳ ลองสร้างเสียงอีกครั้ง (${attempt}/3)...`);
+    // รอบที่ 3-4 ตัดคำสั่งสไตล์ออก (บางครั้งโมเดลเสียงตีความเป็นข้อความแล้วไม่คืนเสียง)
+    const prompt = attempt >= 2 || !style ? text : `${style}: ${text}`;
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${settings.ttsModel}:generateContent?key=${settings.geminiKey}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: voice } } } }
+      })
+    });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) addUsage(settings.ttsModel, j.usageMetadata);
+    if (!r.ok) {
+      lastErr = j.error?.message || 'HTTP ' + r.status;
+      if (r.status === 429 || r.status >= 500) { await sleep(8000 * (attempt + 1)); continue; }
+      throw new Error(lastErr);
+    }
+    const cand = j.candidates?.[0], part = cand?.content?.parts?.find(p => p.inlineData?.data);
+    if (!part) {
+      lastErr = `โมเดลเสียงไม่คืนไฟล์เสียง (${cand?.finishReason || j.promptFeedback?.blockReason || 'ไม่ทราบสาเหตุ'})`;
+      await sleep(1500 * (attempt + 1)); continue;
+    }
+    const rate = +(/rate=(\d+)/.exec(part.inlineData.mimeType || '')?.[1]) || 24000;
+    const bin = atob(part.inlineData.data), n = bin.length >> 1, buf = ac.createBuffer(1, n, rate), ch = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) { let v = bin.charCodeAt(2 * i) | (bin.charCodeAt(2 * i + 1) << 8); if (v > 32767) v -= 65536; ch[i] = v / 32768; }
+    return buf;
+  }
+  throw new Error(lastErr + ' — ลองเปลี่ยนโมเดลเสียง/เสียงพากย์ หรือกดสร้างใหม่');
+}
+// ---------- Meta AI ----------
+async function metaTabId() {
+  let [t] = await chrome.tabs.query({ url: ['https://www.meta.ai/*', 'https://meta.ai/*'] });
+  if (!t) {
+    t = await chrome.tabs.create({ url: 'https://www.meta.ai/', active: false });
+    await new Promise(r => { const f = (id, i) => { if (id === t.id && i.status === 'complete') { chrome.tabs.onUpdated.removeListener(f); r(); } }; chrome.tabs.onUpdated.addListener(f); });
+    await sleep(2500);
+  }
+  return t.id;
+}
+async function metaCall(type, prompt) {
+  const id = await metaTabId();
+  for (let i = 0; i < 6; i++) { try { await chrome.tabs.sendMessage(id, { type: 'ping' }); break; } catch { await sleep(1500); } }
+  const res = await chrome.tabs.sendMessage(id, { type, prompt });
+  if (!res?.ok) throw new Error(res?.error || 'Meta AI error');
+  return res;
+}
+async function metaImageBlob(prompt) {
+  const res = await metaCall('gen-image', prompt);
+  return (await fetch(res.urls[0])).blob();
+}
+async function metaClip(prompt) {
+  const res = await metaCall('gen-video', prompt);
+  const blob = await (await fetch(res.dataUrl || res.url)).blob();
+  const v = document.createElement('video');
+  v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto'; v.src = URL.createObjectURL(blob);
+  await new Promise((ok, no) => { v.onloadeddata = ok; v.onerror = () => no(new Error('เล่นไฟล์วิดีโอจาก Meta AI ไม่ได้')); });
+  return v;
+}
+let run = null, pfx = { image: 'สร้างภาพ ', video: 'สร้างวิดีโอ ' };
+async function saveRun(status, error) {
+  const r = run; run = null; if (!r) return;
+  r.status = status; if (error) r.error = error; r.duration = Math.round((Date.now() - r.ts) / 1000);
+  const list = await store.get('promptLog', []); list.unshift(r);
+  await store.set('promptLog', list.slice(0, 100)); log('💾 บันทึก Prompt ไว้ในแท็บ "ประวัติ Prompt" แล้ว');
+}
+function runText(r) {
+  const L = [`# ${r.title || '(ไม่มีชื่อ)'}  [${new Date(r.ts).toLocaleString('th-TH')}]`, `โหมด: ${r.mode} · โมเดล: ${r.models.text} / ${r.models.tts} · เสียง: ${r.voice}${r.green ? ' · พื้นเขียว' : ''}`, '', '## เนื้อหาต้นทาง', r.input || '(ไม่มี — ใช้รูปประกอบ)', '', '## แคปชัน', `${r.caption} ${(r.hashtags || []).join(' ')}`];
+  if (r.cover) L.push('', '## Prompt ภาพปก (Meta AI)', r.cover);
+  r.scenes.forEach((sc, i) => { L.push('', `## ฉาก ${i + 1}`, `บทพูด: ${sc.narration}`); if (sc.visual) L.push(`ภาพ/วิดีโอ: ${sc.visual}`); sc.clips.forEach((c, k) => L.push(`Prompt คลิป ${k + 1} (Meta AI): ${c}`)); });
+  return L.join('\n');
+}
+async function renderHist() {
+  const list = await store.get('promptLog', []), box = $('#hList'); box.innerHTML = list.length ? '' : '<p class="note">ยังไม่มีประวัติ</p>';
+  list.forEach(r => {
+    const d = document.createElement('div'); d.className = 'item'; d.style.alignItems = 'flex-start';
+    d.innerHTML = `<div class="t"><b>${esc(r.title || r.caption || '(ไม่มีชื่อ)')}</b><small>${new Date(r.ts).toLocaleString('th-TH')} · ${r.scenes.length} ฉาก · ${esc(r.models.text)}${r.status === 'error' ? ' · ❌ ' + esc(r.error || '') : ''}</small>
+      <details style="margin-top:4px"><summary class="note" style="cursor:pointer">ดู Prompt ทั้งหมด</summary><pre style="white-space:pre-wrap;font:12px/1.6 ui-monospace,monospace;color:var(--mut);margin:6px 0 0">${esc(runText(r))}</pre></details></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><button class="g cp">คัดลอก</button><button class="g re">ใช้ซ้ำ</button><button class="g del">ลบ</button></div>`;
+    d.querySelector('.cp').onclick = async e => { await navigator.clipboard.writeText(runText(r)); e.target.textContent = 'คัดลอกแล้ว ✓'; };
+    d.querySelector('.re').onclick = () => { $('#input').value = r.input || ''; $('#mode').value = r.mode; document.querySelector('nav button[data-t="gen"]').click(); };
+    d.querySelector('.del').onclick = async () => { await store.set('promptLog', (await store.get('promptLog', [])).filter(x => x.id !== r.id)); renderHist(); };
+    box.append(d);
+  });
+}
+$('#hClear').onclick = async () => { if (confirm('ล้างประวัติ Prompt ทั้งหมด?')) { await store.set('promptLog', []); renderHist(); } };
+$('#hExport').onclick = async () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(await store.get('promptLog', []), null, 2)], { type: 'application/json' })); a.download = 'prompt-history.json'; a.click(); };
+let coverCanvas = null, coverBlob = null;
+async function makeCover(blob, title, withTitle) {
+  const bmp = await createImageBitmap(blob), c = new OffscreenCanvas(720, 1280), g = c.getContext('2d');
+  const sc = Math.max(720 / bmp.width, 1280 / bmp.height);
+  g.drawImage(bmp, (720 - bmp.width * sc) / 2, (1280 - bmp.height * sc) / 2, bmp.width * sc, bmp.height * sc);
+  if (withTitle && title) {
+    const gr = g.createLinearGradient(0, 0, 0, 560); gr.addColorStop(0, 'rgba(0,0,0,.6)'); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 720, 560);
+    g.font = '800 72px "Noto Sans Thai","Sarabun","Leelawadee UI",Tahoma,sans-serif';
+    g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.lineWidth = 12;
+    const lines = wrap(g, title, 620), y0 = 190 - (lines.length - 1) * 48;
+    lines.forEach((l, k) => { g.strokeStyle = '#000'; g.strokeText(l, 360, y0 + k * 96); g.fillStyle = '#fff'; g.fillText(l, 360, y0 + k * 96); });
+  }
+  return { canvas: c, blob: await c.convertToBlob({ type: 'image/jpeg', quality: .92 }) };
+}
+$('#coverDl').onclick = () => { if (!coverBlob) return; const a = document.createElement('a'); a.href = URL.createObjectURL(coverBlob); a.download = 'cover.jpg'; a.click(); };
+
+let mediaPool = [], refFiles = [];
+$('#refFiles').onchange = e => { refFiles = [...e.target.files].slice(0, 8); renderThumbs(); };
+function renderThumbs() {
+  const box = $('#refThumbs'); box.innerHTML = '';
+  refFiles.forEach((f, i) => {
+    const w = document.createElement('div'); w.style.cssText = 'position:relative;width:56px;height:56px';
+    const im = document.createElement('img'); im.src = URL.createObjectURL(f);
+    im.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:8px;border:1px solid var(--line)';
+    const n = document.createElement('span'); n.textContent = i + 1;
+    n.style.cssText = 'position:absolute;top:2px;left:2px;background:var(--acc);color:#fff;font-size:10px;border-radius:99px;padding:0 6px';
+    w.append(im, n); box.append(w);
+  });
+}
+async function toJpegB64(file) { // ย่อรูปไม่เกิน 1024px ก่อนส่งให้ Gemini
+  const bmp = await createImageBitmap(file), sc = Math.min(1, 1024 / Math.max(bmp.width, bmp.height));
+  const c = new OffscreenCanvas(Math.round(bmp.width * sc), Math.round(bmp.height * sc));
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+  const blob = await c.convertToBlob({ type: 'image/jpeg', quality: .85 });
+  return new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result.split(',')[1]); r.onerror = no; r.readAsDataURL(blob); });
+}
+$('#bgSrc').onchange = () => { $('#mediaWrap').style.display = $('#bgSrc').value === 'upload' ? 'block' : 'none'; };
+$('#mediaFiles').onchange = e => { mediaPool = [...e.target.files].map(f => ({ file: f, type: f.type.startsWith('video') ? 'video' : 'image' })); };
+async function mediaToVideo(file) {
+  const v = document.createElement('video');
+  v.muted = true; v.loop = true; v.playsInline = true; v.preload = 'auto'; v.src = URL.createObjectURL(file);
+  await new Promise((ok, no) => { v.onloadeddata = ok; v.onerror = () => no(new Error('เล่นไฟล์วิดีโอไม่ได้: ' + file.name)); });
+  return v;
+}
+function placeholder(text, i) {
+  const c = new OffscreenCanvas(720, 1280), g = c.getContext('2d');
+  if (greenOn) { g.fillStyle = '#00FF00'; g.fillRect(0, 0, 720, 1280); return c.transferToImageBitmap(); }
+  const hue = (i * 47 + 250) % 360, gr = g.createLinearGradient(0, 0, 720, 1280);
+  gr.addColorStop(0, `hsl(${hue},60%,35%)`); gr.addColorStop(1, `hsl(${(hue + 60) % 360},70%,18%)`);
+  g.fillStyle = gr; g.fillRect(0, 0, 720, 1280);
+  return c.transferToImageBitmap();
+}
+
+const W = 720, H = 1280, seg = new Intl.Segmenter('th', { granularity: 'word' });
+function splitPhrases(text, dur) {
+  const words = [...seg.segment(text)].map(s => s.segment), out = []; let cur = '';
+  for (const w of words) { cur += w; if (cur.length >= 20 || /[.!?,]$/.test(w.trim())) { out.push(cur.trim()); cur = ''; } }
+  if (cur.trim()) out.push(cur.trim());
+  const total = out.reduce((a, p) => a + p.length, 0) || 1; let t = 0;
+  return out.map(p => { const d = dur * p.length / total; const o = { text: p, start: t, end: t + d }; t += d; return o; });
+}
+function wrap(g, text, maxW) {
+  const lines = []; let line = '';
+  for (const { segment: w } of seg.segment(text)) {
+    if (g.measureText(line + w).width > maxW && line) { lines.push(line.trim()); line = w; } else line += w;
+  }
+  if (line.trim()) lines.push(line.trim()); return lines;
+}
+function draw(g, s, i, p, t, phrases) {
+  g.fillStyle = '#000'; g.fillRect(0, 0, W, H);
+  const el = s.vid || s.img, ew = s.vid ? s.vid.videoWidth : s.img.width, eh = s.vid ? s.vid.videoHeight : s.img.height;
+  const z = s.vid ? 1 : (i % 2 ? 1.14 - 0.14 * p : 1 + 0.14 * p), sc = Math.max(W / ew, H / eh) * z;
+  const iw = ew * sc, ih = eh * sc;
+  g.drawImage(el, (W - iw) / 2, (H - ih) / 2, iw, ih);
+  if (!greenOn) { // โหมดกรีนสกรีนห้ามมีเงาไล่สี เพราะจะทำให้คีย์สีไม่สะอาด
+    const gr = g.createLinearGradient(0, H * .6, 0, H); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.55)');
+    g.fillStyle = gr; g.fillRect(0, H * .6, W, H * .4);
+  }
+  const ph = phrases.find(x => t >= x.start && t < x.end) || phrases[phrases.length - 1];
+  if (!ph) return;
+  g.font = '700 46px "Noto Sans Thai","Sarabun","Leelawadee UI",Tahoma,sans-serif';
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineJoin = 'round'; g.lineWidth = 9;
+  const lines = wrap(g, ph.text, W - 90), y0 = H * .78 - (lines.length - 1) * 33;
+  lines.forEach((l, k) => { g.strokeStyle = '#000'; g.strokeText(l, W / 2, y0 + k * 66); g.fillStyle = '#fff'; g.fillText(l, W / 2, y0 + k * 66); });
+}
+async function compose(scenes, cover) {
+  const c = document.createElement('canvas'); c.width = W; c.height = H; const g = c.getContext('2d');
+  const dest = ac.createMediaStreamDestination();
+  const stream = new MediaStream([...c.captureStream(30).getVideoTracks(), ...dest.stream.getAudioTracks()]);
+  const mime = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'].find(m => MediaRecorder.isTypeSupported(m));
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4e6 }), chunks = [];
+  rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  const stopped = new Promise(r => rec.onstop = r);
+  await ac.resume(); rec.start(500);
+  if (cover) { // เฟรมแรก: ภาพปก 1 วินาที
+    const t0 = performance.now();
+    await new Promise(res => { const f = () => { if ((performance.now() - t0) / 1000 >= 1) return res(); g.drawImage(cover, 0, 0, W, H); nextFrame(f); }; f(); });
+  }
+  for (let i = 0; i < scenes.length; i++) {
+    const s = scenes[i], dur = s.audio.duration + .35, phrases = splitPhrases(s.text, s.audio.duration);
+    const src = ac.createBufferSource(); src.buffer = s.audio; src.connect(dest); src.start();
+    const clips = s.clips || (s.vid ? [s.vid] : null), tot = clips ? clips.reduce((a, c) => a + (c.duration || 1), 0) : 0;
+    let ci = -1;
+    const t0 = performance.now();
+    await new Promise(res => { const f = () => {
+      const t = (performance.now() - t0) / 1000; if (t >= dur) return res();
+      if (clips) { // เล่นคลิปต่อกันตามลำดับ ครบแล้ววนใหม่
+        let tt = t % tot, idx = 0;
+        for (; idx < clips.length - 1; idx++) { const d = clips[idx].duration || 1; if (tt < d) break; tt -= d; }
+        if (idx !== ci) { if (ci >= 0) clips[ci].pause(); ci = idx; clips[ci].currentTime = 0; clips[ci].play().catch(() => {}); }
+        s.vid = clips[ci];
+      }
+      draw(g, s, i, t / dur, t, phrases); nextFrame(f); }; f(); });
+    if (clips) clips.forEach(c => c.pause());
+  }
+  rec.stop(); await stopped; stream.getTracks().forEach(t => t.stop());
+  return { blob: new Blob(chunks, { type: mime.split(';')[0] }), mime: mime.split(';')[0] };
+}
+
+$('#go').onclick = async () => {
+  const input = $('#input').value.trim(); if (!input && !refFiles.length) return log('⚠️ ใส่เนื้อหา หรือแนบรูปอย่างน้อย 1 รูป');
+  $('#go').disabled = true; $('#enq').disabled = $('#dl').disabled = true; $('#log').textContent = '';
+  try {
+    ac = new AudioContext(); greenOn = $('#green').checked;
+    const mode = $('#mode').value, n = Math.min(10, Math.max(3, +$('#scenes').value || 5));
+    log('📝 กำลังเขียนสคริปต์...'); const imgs = refFiles.length ? await Promise.all(refFiles.map(toJpegB64)) : [];
+    if (imgs.length) log(`🖼️ ส่งรูป ${imgs.length} รูปให้ AI ดู...`);
+    const wantVid = $('#metaVideo').checked, wantCover = $('#metaCover').checked;
+    const plan = await genPlan(mode, input, n, imgs, { visual: wantVid, cover: wantCover });
+    const mcfg = (await store.get('remoteConfig', {})).meta || {};
+    pfx = { image: mcfg.imagePrefix || 'สร้างภาพ ', video: mcfg.videoPrefix || 'สร้างวิดีโอ ' };
+    run = { id: 'p' + Date.now(), ts: Date.now(), mode, input, refImages: refFiles.length, models: { text: settings.textModel, tts: settings.ttsModel }, voice: $('#voice').value, green: greenOn,
+      title: plan.title || '', caption: plan.caption || '', hashtags: plan.hashtags || [], cover: null, scenes: [] };
+    $('#caption').value = plan.caption || plan.title || ''; $('#tags').value = (plan.hashtags || []).join(' ');
+    coverCanvas = coverBlob = null; $('#coverBox').style.display = 'none';
+    if (wantCover && plan.cover) {
+      try {
+        run.cover = pfx.image + plan.cover;
+        log('🖼️ ขอภาพปกจาก Meta AI...');
+        const cv = await makeCover(await metaImageBlob(plan.cover), plan.title || plan.caption, $('#coverTitle').checked);
+        coverCanvas = cv.canvas; coverBlob = cv.blob; $('#coverImg').src = URL.createObjectURL(cv.blob); $('#coverBox').style.display = 'block';
+        log('   ↳ ได้ภาพปกแล้ว');
+      } catch (e) { log('   ↳ ข้ามภาพปก: ' + e.message); }
+    }
+    const scenes = [], maxClips = +$('#maxClips').value || 3, VAR = ['', 'ต่อเนื่องจากการเคลื่อนไหวเดิม เปลี่ยนมุมกล้องเล็กน้อย', 'ภาพมุมกว้างของตัวแบบเดิม เคลื่อนไหวต่อเนื่องกัน', 'ภาพโคลสอัพรายละเอียดของตัวแบบเดิม เคลื่อนไหวต่อเนื่องกัน'];
+    for (let i = 0; i < plan.scenes.length; i++) {
+      const sc = plan.scenes[i]; run.scenes.push({ narration: sc.narration, visual: sc.visual || '', image: sc.image || null, clips: [] }); log(`🎞️ ฉาก ${i + 1}/${plan.scenes.length}: ${sc.narration}`);
+      let img = null, vid = null, clips = null;
+      log('   ↳ สร้างเสียงพากย์...'); const audio = await tts(sc.narration, $('#voice').value, $('#vstyle').value);
+      if (wantVid && sc.visual) {
+        const need = audio.duration + .35; clips = []; let have = 0;
+        for (let k = 0; k < maxClips && have < need; k++) {
+          try {
+            log(`   ↳ สั่ง Meta AI สร้างวิดีโอ คลิป ${k + 1}/${maxClips} (ต้องการ ${need.toFixed(1)} วิ มีแล้ว ${have.toFixed(1)} วิ — รอสักครู่)...`);
+            const vp = VAR[k] ? `${sc.visual}. ${VAR[k]}` : sc.visual; run.scenes[i].clips.push(pfx.video + vp);
+            const c = await metaClip(vp);
+            clips.push(c); have += c.duration || 0;
+          } catch (e) { log('   ↳ ' + e.message); break; }
+        }
+        if (clips.length) log(`   ↳ ได้วิดีโอรวม ${have.toFixed(1)} วิ / ต้องการ ${need.toFixed(1)} วิ${have < need ? ' (ส่วนที่เหลือเล่นวนซ้ำ)' : ' ✓'}`); else clips = null;
+      }
+      const refIdx = refFiles.length && $('#refBg').checked ? Math.min(refFiles.length, Math.max(1, Math.round(+sc.image) || (i % refFiles.length) + 1)) - 1 : -1;
+      const media = greenOn || clips ? null : refIdx >= 0 ? { file: refFiles[refIdx], type: 'image' }
+        : ($('#bgSrc').value === 'upload' && mediaPool.length ? mediaPool[i % mediaPool.length] : null);
+      if (media && refIdx >= 0) log(`   ↳ ใช้รูปที่ ${refIdx + 1} เป็นพื้นหลัง`);
+      try {
+        if (media) { if (media.type === 'video') vid = await mediaToVideo(media.file); else img = await createImageBitmap(media.file); }
+      } catch (e) { log('   ↳ ใช้พื้นหลังแทน: ' + e.message); }
+      if (!img && !vid && !clips) img = placeholder(sc.narration, i);
+      scenes.push({ img, vid, clips, audio, text: sc.narration });
+    }
+    log('🎬 กำลังเรนเดอร์ (เปิดแท็บนี้ค้างไว้)...');
+    current = await compose(scenes, coverCanvas && $('#coverFrame').checked ? coverCanvas : null);
+    $('#player').src = URL.createObjectURL(current.blob);
+    log(`✅ เสร็จแล้ว (${(current.blob.size / 1e6).toFixed(1)} MB, ${current.mime})`);
+    if (current.mime.includes('webm')) log('ℹ️ เบราว์เซอร์นี้ออกไฟล์ WebM — ถ้า TikTok ไม่รับ ให้แปลงเป็น MP4 ก่อน');
+    $('#enq').disabled = $('#dl').disabled = false; setDefaultWhen();
+    await saveRun('done');
+  } catch (e) { log('❌ ' + e.message); if (run) await saveRun('error', e.message); }
+  $('#go').disabled = false;
+};
+$('#dl').onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(current.blob); a.download = 'clip.' + (current.mime.includes('mp4') ? 'mp4' : 'webm'); a.click(); };
+
+async function setDefaultWhen() {
+  const q = await store.get('queue', []);
+  const last = Math.max(Date.now(), ...q.filter(j => j.status === 'pending').map(j => j.runAt));
+  const t = new Date(last + (q.length ? (settings.minGap + Math.random() * (settings.maxGap - settings.minGap)) * 60e3 : 120e3));
+  t.setMinutes(t.getMinutes() - t.getTimezoneOffset()); $('#when').value = t.toISOString().slice(0, 16);
+}
+$('#enq').onclick = async () => {
+  const id = 'v' + Date.now(); await AVS_DB.put(id, { blob: current.blob, mime: current.mime });
+  const prods = await store.get('products', []), p = prods[$('#prodSel').value];
+  const q = await store.get('queue', []);
+  q.push({ id: 'j' + Date.now(), videoId: id, caption: $('#caption').value, hashtags: $('#tags').value.split(/\s+/).filter(Boolean),
+    productName: p?.name || '', productId: p?.id || '', runAt: new Date($('#when').value).getTime() || Date.now(), status: 'pending' });
+  await store.set('queue', q); log('➕ เพิ่มเข้าคิวแล้ว'); $('#enq').disabled = true;
+};
+
+async function renderQueue() {
+  const q = await store.get('queue', []); $('#qList').innerHTML = q.length ? '' : '<p class="note">คิวว่าง</p>';
+  q.slice().reverse().forEach(j => {
+    const d = document.createElement('div'); d.className = 'item';
+    d.innerHTML = `<div class="t"><b>${esc(j.caption || '(ไม่มีแคปชัน)')}</b><small>${new Date(j.runAt).toLocaleString('th-TH')}${j.productName ? ' · 🛒 ' + esc(j.productName) : ''}${j.error ? ' · ' + esc(j.error) : ''}</small></div>
+      <span class="tag ${j.status}">${j.status}</span>${j.status === 'pending' ? '<button class="g now">โพสต์เลย</button>' : ''}${j.status === 'error' ? '<button class="g retry">ลองใหม่</button>' : ''}<button class="g del">ลบ</button>`;
+    const upd = async fn => { const cur = await store.get('queue', []); const x = cur.find(y => y.id === j.id); await fn(x, cur); await store.set('queue', cur); renderQueue(); };
+    d.querySelector('.del').onclick = () => upd(async (x, cur) => { cur.splice(cur.indexOf(x), 1); await AVS_DB.del(j.videoId); });
+    d.querySelector('.now')?.addEventListener('click', () => upd(x => x.runAt = Date.now()));
+    d.querySelector('.retry')?.addEventListener('click', () => upd(x => { x.status = 'pending'; x.error = ''; x.runAt = Date.now(); }));
+    $('#qList').append(d);
+  });
+}
+$('#qRefresh').onclick = renderQueue;
+chrome.storage.onChanged.addListener(c => { if (c.queue && $('#queue').classList.contains('on')) renderQueue(); });
+
+loadSettings().then(renderUsage); renderProducts();
+
+// ---------- อัปเดต ----------
+async function renderUpdate() {
+  const { update, updateStatus: st } = await chrome.storage.local.get(['update', 'updateStatus']);
+  const ver = chrome.runtime.getManifest().version, b = $('#upd');
+  if (update) {
+    b.style.display = 'block';
+    b.innerHTML = `🆕 มีเวอร์ชันใหม่ <b>v${esc(update.version)}</b> (ตอนนี้ v${esc(ver)}) ${update.notes ? '— ' + esc(update.notes) : ''} ${update.download ? `<a href="${esc(update.download)}" target="_blank">ดาวน์โหลด</a>` : ''}<br><small>แตก zip ทับโฟลเดอร์เดิม แล้วกดรีโหลดที่ chrome://extensions</small>`;
+  } else b.style.display = 'none';
+  $('#updInfo').textContent = `v${ver} · เช็กล่าสุด: ${st ? new Date(st.checkedAt).toLocaleString('th-TH') : '-'}${st?.config ? ' · config ' + st.config : ''}${st?.error ? ' · ⚠️ ' + st.error : ''}`;
+}
+$('#checkNow').onclick = async () => { $('#updInfo').textContent = 'กำลังเช็ก…'; await chrome.runtime.sendMessage({ type: 'check-update' }); renderUpdate(); };
+renderUpdate();
+
+// ---------- เลือกโมเดล ----------
+const MODEL_PRESETS = {
+  text: ['gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-2.5-flash-lite', 'gemini-2.0-flash'],
+  tts: ['gemini-2.5-flash-preview-tts', 'gemini-2.5-pro-preview-tts']
+};
+function fillSelect(sel, list, cur) {
+  const all = [...new Set([...list, cur].filter(Boolean))];
+  sel.innerHTML = all.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('');
+  sel.value = cur;
+}
+async function populateModels() {
+  const c = await store.get('modelList', null);
+  fillSelect($('#textModel'), c?.text || MODEL_PRESETS.text, settings.textModel);
+  fillSelect($('#ttsModel'), c?.tts || MODEL_PRESETS.tts, settings.ttsModel);
+}
+const saveModels = async () => { settings.textModel = $('#textModel').value; settings.ttsModel = $('#ttsModel').value; await store.set('settings', settings); };
+$('#textModel').onchange = $('#ttsModel').onchange = async () => { await saveModels(); renderUsage(); };
+$('#loadModels').onclick = async () => {
+  const key = $('#key').value.trim() || settings.geminiKey, info = $('#modelInfo');
+  if (!key) return info.textContent = 'ใส่ API Key ในแท็บตั้งค่าก่อน';
+  info.textContent = 'กำลังโหลด…';
+  try {
+    const all = []; let tok = '';
+    do {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key=${key}${tok ? '&pageToken=' + tok : ''}`);
+      const j = await r.json(); if (!r.ok) throw new Error(j.error?.message || 'error');
+      all.push(...(j.models || [])); tok = j.nextPageToken || '';
+    } while (tok);
+    const ok = all.filter(m => (m.supportedGenerationMethods || []).includes('generateContent')).map(m => m.name.replace('models/', ''));
+    const tts = ok.filter(n => /tts/i.test(n));
+    const text = ok.filter(n => /^gemini/i.test(n) && !/tts|image|embedding|live|audio|vision|robotics|computer-use/i.test(n));
+    await store.set('modelList', { text, tts }); await populateModels();
+    info.textContent = `พบ ${text.length} โมเดลข้อความ · ${tts.length} โมเดลเสียง`;
+  } catch (e) { info.textContent = '❌ ' + e.message; }
+};
+
+</script>
+</body>
+</html>
